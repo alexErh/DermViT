@@ -1,0 +1,17 @@
+# Datensatz - zu groß für GitHub
+data/
+
+# Trainierte Modelle - auch groß
+*.pth
+*.pt
+*.h5
+
+# Jupyter Checkpoints
+.ipynb_checkpoints/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# Generierte Plots (optional - kannst du auch versionieren)
+*.png
