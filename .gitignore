@@ -1,17 +1,23 @@
-# Datensatz - zu groß für GitHub
+# Dataset - too large for GitHub
 data/
 
-# Trainierte Modelle - auch groß
+# Trained models - also large
 *.pth
 *.pt
 *.h5
 
-# Jupyter Checkpoints
+# Jupyter checkpoints
 .ipynb_checkpoints/
 
-# Python Cache
+# Python cache
 __pycache__/
 *.pyc
 
-# Generierte Plots (optional - kannst du auch versionieren)
+# Generated plots
 *.png
+
+# ZIP files
+*.zip
+
+# Histories folder
+histories/
