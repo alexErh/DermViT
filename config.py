@@ -29,6 +29,14 @@ LR           = 1e-3
 WEIGHT_DECAY = 1e-4
 SEED         = 42
 
+# ── ViT-specific hyperparameters ──────────────────────────────────────────────
+PATCH_SIZE = 8
+EMBED_DIM  = 256
+NUM_HEADS  = 8
+NUM_LAYERS = 6
+MLP_DIM    = 512
+DROPOUT    = 0.1
+
 # ── Normalization values (HAM10000-specific) ──────────────────────────────────
 MEAN = [0.7630, 0.5456, 0.5700]
 STD  = [0.1409, 0.1521, 0.1691]

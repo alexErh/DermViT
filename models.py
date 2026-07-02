@@ -3,10 +3,13 @@ models.py
 ─────────
 Model architectures for DermViT:
   - CNN : classic approach (Model A)
+  - ViT : custom implementation following Dosovitskiy et al. (Model B)
 """
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from einops import rearrange, repeat
 
 import config
 
@@ -64,6 +67,160 @@ class CNN(nn.Module):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Model B: Vision Transformer (from scratch)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class PatchEmbedding(nn.Module):
+    """
+    Step 1: Split image into patches and linearly project them.
+    Conv2d with kernel=stride=patch_size handles both in one step.
+
+    Input:  (B, C, H, W)
+    Output: (B, num_patches, embed_dim)
+    """
+
+    def __init__(self, img_size, patch_size, in_ch=3, embed_dim=256):
+        super().__init__()
+        self.num_patches = (img_size // patch_size) ** 2
+        self.proj = nn.Conv2d(
+            in_ch, embed_dim,
+            kernel_size=patch_size, stride=patch_size
+        )
+
+    def forward(self, x):
+        x = self.proj(x)                           # (B, D, H/P, W/P)
+        x = rearrange(x, 'b c h w -> b (h w) c')  # (B, N, D)
+        return x
+
+
+class MultiHeadSelfAttention(nn.Module):
+    """
+    Multi-Head Self-Attention.
+    Attention(Q,K,V) = softmax(QKᵀ / sqrt(d_k)) · V
+    Attention weights are stored for visualization.
+    """
+
+    def __init__(self, embed_dim, num_heads, dropout=0.0):
+        super().__init__()
+        self.num_heads    = num_heads
+        self.head_dim     = embed_dim // num_heads
+        self.scale        = self.head_dim ** -0.5
+        self.qkv          = nn.Linear(embed_dim, embed_dim * 3, bias=False)
+        self.proj_out     = nn.Linear(embed_dim, embed_dim)
+        self.drop         = nn.Dropout(dropout)
+        self.attn_weights = None  # for attention rollout
+
+    def forward(self, x):
+        B, N, C = x.shape
+        qkv = rearrange(
+            self.qkv(x),
+            'b n (three h d) -> three b h n d',
+            three=3, h=self.num_heads
+        )
+        q, k, v = qkv.unbind(0)
+        attn = torch.einsum('bhid,bhjd->bhij', q, k) * self.scale
+        attn = attn.softmax(dim=-1)
+        self.attn_weights = attn.detach()
+        attn = self.drop(attn)
+        out  = torch.einsum('bhij,bhjd->bhid', attn, v)
+        return self.proj_out(rearrange(out, 'b h n d -> b n (h d)'))
+
+
+class TransformerBlock(nn.Module):
+    """
+    Pre-Norm Transformer Encoder Block:
+      x → LayerNorm → MSA → Residual
+        → LayerNorm → FFN → Residual
+    """
+
+    def __init__(self, embed_dim, num_heads, mlp_dim, dropout=0.1):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.attn  = MultiHeadSelfAttention(embed_dim, num_heads, dropout)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        self.ffn   = nn.Sequential(
+            nn.Linear(embed_dim, mlp_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(mlp_dim, embed_dim),
+            nn.Dropout(dropout),
+        )
+
+    def forward(self, x):
+        x = x + self.attn(self.norm1(x))
+        x = x + self.ffn(self.norm2(x))
+        return x
+
+
+class ViT(nn.Module):
+    """
+    Vision Transformer – full implementation following Dosovitskiy et al. (ICLR 2021).
+
+    Pipeline:
+      Image → PatchEmbedding → [CLS] + PositionEmbedding
+            → L × TransformerBlock
+            → LayerNorm → CLS token → MLP Head → Class
+    """
+
+    def __init__(self, img_size, patch_size, num_classes,
+                 embed_dim, num_heads, num_layers, mlp_dim, dropout=0.1):
+        super().__init__()
+        self.patch_embed = PatchEmbedding(img_size, patch_size, embed_dim=embed_dim)
+        n = self.patch_embed.num_patches
+
+        self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim) * 0.02)
+        self.pos_embed = nn.Parameter(torch.randn(1, n + 1, embed_dim) * 0.02)
+        self.drop      = nn.Dropout(dropout)
+
+        self.blocks = nn.ModuleList([
+            TransformerBlock(embed_dim, num_heads, mlp_dim, dropout)
+            for _ in range(num_layers)
+        ])
+
+        self.norm = nn.LayerNorm(embed_dim)
+        self.head = nn.Sequential(
+            nn.Linear(embed_dim, mlp_dim // 2),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(mlp_dim // 2, num_classes)
+        )
+        self._init_weights()
+
+    def _init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.trunc_normal_(m.weight, std=0.02)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.LayerNorm):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+
+    def forward(self, x):
+        B = x.shape[0]
+        x = self.patch_embed(x)
+        x = torch.cat([repeat(self.cls_token, '1 1 d -> b 1 d', b=B), x], dim=1)
+        x = self.drop(x + self.pos_embed)
+        for block in self.blocks:
+            x = block(x)
+        return self.head(self.norm(x)[:, 0])
+
+    def get_attention_maps(self, x):
+        """Returns attention maps from all blocks (for attention rollout)."""
+        self.eval()
+        with torch.no_grad():
+            B = x.shape[0]
+            x = self.patch_embed(x)
+            x = torch.cat([repeat(self.cls_token, '1 1 d -> b 1 d', b=B), x], dim=1)
+            x = self.drop(x + self.pos_embed)
+            maps = []
+            for block in self.blocks:
+                x = block(x)
+                maps.append(block.attn.attn_weights.cpu())
+        return maps
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Factory functions
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -73,4 +230,22 @@ def build_cnn(device=None):
     model = CNN(num_classes=config.NUM_CLASSES).to(dev)
     params = sum(p.numel() for p in model.parameters())
     print(f'CNN parameters: {params:,}')
+    return model
+
+
+def build_vit(device=None):
+    """Creates and returns ViT (from scratch)."""
+    dev = device or config.DEVICE
+    model = ViT(
+        img_size    = config.IMG_SIZE,
+        patch_size  = config.PATCH_SIZE,
+        num_classes = config.NUM_CLASSES,
+        embed_dim   = config.EMBED_DIM,
+        num_heads   = config.NUM_HEADS,
+        num_layers  = config.NUM_LAYERS,
+        mlp_dim     = config.MLP_DIM,
+        dropout     = config.DROPOUT
+    ).to(dev)
+    params = sum(p.numel() for p in model.parameters())
+    print(f'ViT parameters: {params:,}')
     return model
