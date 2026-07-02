@@ -1,10 +1,11 @@
 """
 models.py
 ─────────
-Model architectures for DermViT:
+All model architectures for DermViT:
   - CNN          : classic approach (Model A)
   - ViT          : custom implementation following Dosovitskiy et al. (Model B)
   - get_timm_vit : pretrained ViT from timm (Model C)
+  - ResNet50Timm : pretrained ResNet50 from timm (Model D)
 """
 
 import torch
@@ -279,4 +280,47 @@ def build_timm_vit(device=None):
     model = get_timm_vit(num_classes=config.NUM_CLASSES).to(dev)
     params = sum(p.numel() for p in model.parameters())
     print(f'timm ViT-Small parameters: {params:,}')
+    return model
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Model D: Pretrained ResNet50 from timm
+# ══════════════════════════════════════════════════════════════════════════════
+
+class ResNet50Timm(nn.Module):
+    """
+    Wrapper around timm ResNet50 – ensures .fc (head) is accessible
+    uniformly like model.head in ViT (for two-phase training).
+    """
+
+    def __init__(self, num_classes=7):
+        super().__init__()
+        import timm
+        base = timm.create_model('resnet50', pretrained=True, num_classes=0)
+        self.backbone  = base
+        in_features    = base.num_features          # 2048 for ResNet50
+        self.head      = nn.Sequential(
+            nn.Linear(in_features, 512),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(512, num_classes)
+        )
+
+    def forward(self, x):
+        features = self.backbone(x)   # (B, 2048)
+        return self.head(features)
+
+
+def build_resnet50(device=None):
+    """
+    Loads pretrained ResNet50 from timm (Model D).
+    Pretrained on ImageNet-1k.
+    Same input size as Model C: 224×224 px.
+    """
+    dev   = device or config.DEVICE
+    model = ResNet50Timm(num_classes=config.NUM_CLASSES).to(dev)
+    params = sum(p.numel() for p in model.parameters())
+    print(f'ResNet50 parameters: {params:,}')
+    print(f'  → Backbone: ResNet50 (ImageNet-1k pretrained)')
+    print(f'  → Head:     Linear(2048→512→{config.NUM_CLASSES})')
     return model
