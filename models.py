@@ -2,8 +2,9 @@
 models.py
 ─────────
 Model architectures for DermViT:
-  - CNN : classic approach (Model A)
-  - ViT : custom implementation following Dosovitskiy et al. (Model B)
+  - CNN          : classic approach (Model A)
+  - ViT          : custom implementation following Dosovitskiy et al. (Model B)
+  - get_timm_vit : pretrained ViT from timm (Model C)
 """
 
 import torch
@@ -221,6 +222,27 @@ class ViT(nn.Module):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Model C: Pretrained ViT from timm
+# ══════════════════════════════════════════════════════════════════════════════
+
+def get_timm_vit(num_classes=7):
+    """
+    Loads pretrained ViT-Small from timm (Model C).
+    Weights from ImageNet-21k (14M images).
+
+    Returns:
+        vit_timm (nn.Module): pretrained ViT-Small model
+    """
+    import timm
+    model = timm.create_model(
+        'vit_small_patch16_224',
+        pretrained=True,
+        num_classes=num_classes
+    )
+    return model
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Factory functions
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -248,4 +270,13 @@ def build_vit(device=None):
     ).to(dev)
     params = sum(p.numel() for p in model.parameters())
     print(f'ViT parameters: {params:,}')
+    return model
+
+
+def build_timm_vit(device=None):
+    """Loads pretrained ViT-Small from timm."""
+    dev = device or config.DEVICE
+    model = get_timm_vit(num_classes=config.NUM_CLASSES).to(dev)
+    params = sum(p.numel() for p in model.parameters())
+    print(f'timm ViT-Small parameters: {params:,}')
     return model
