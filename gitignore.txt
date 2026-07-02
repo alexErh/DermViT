@@ -1,0 +1,26 @@
+# Dataset - too large for GitHub
+data/
+
+# Trained models - also large
+*.pth
+*.pt
+*.h5
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Generated plots
+*.png
+
+# ZIP files
+*.zip
+
+# Histories folder
+histories/
+
+# Other
+.DS_Store
