@@ -21,3 +21,6 @@ __pycache__/
 
 # Histories folder
 histories/
+
+# Other
+.DS_Store

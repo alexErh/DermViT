@@ -156,3 +156,51 @@ def get_timm_dataloaders(df_train, df_val, df_test):
     )
     print(f'timm DataLoaders created  |  Train: {len(timm_train_loader)} batches')
     return timm_train_loader, timm_val_loader, timm_test_loader
+
+
+def get_resnet_transforms():
+    """
+    Transforms for Model D (ResNet50) – 224×224, ImageNet normalization.
+    Identical to timm ViT transforms for a fair comparison.
+    """
+    resnet_train_tf = transforms.Compose([
+        transforms.Resize((config.IMG_SIZE_RESNET, config.IMG_SIZE_RESNET)),
+        RandomAugmentation8(),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+    resnet_val_tf = transforms.Compose([
+        transforms.Resize((config.IMG_SIZE_RESNET, config.IMG_SIZE_RESNET)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+    return resnet_train_tf, resnet_val_tf
+
+
+def get_resnet_dataloaders(df_train, df_val, df_test):
+    """
+    Creates DataLoaders for Model D (ResNet50, 224×224).
+
+    Returns:
+        resnet_train_loader, resnet_val_loader, resnet_test_loader
+    """
+    resnet_train_tf, resnet_val_tf = get_resnet_transforms()
+
+    resnet_train_loader = DataLoader(
+        HAM10000Dataset(df_train, resnet_train_tf),
+        batch_size=32, shuffle=True,
+        num_workers=0, pin_memory=False
+    )
+    resnet_val_loader = DataLoader(
+        HAM10000Dataset(df_val, resnet_val_tf),
+        batch_size=32, shuffle=False,
+        num_workers=0, pin_memory=False
+    )
+    resnet_test_loader = DataLoader(
+        HAM10000Dataset(df_test, resnet_val_tf),
+        batch_size=32, shuffle=False,
+        num_workers=0, pin_memory=False
+    )
+    print(f'ResNet50 DataLoaders created  |  Train: {len(resnet_train_loader)} batches')
+    return resnet_train_loader, resnet_val_loader, resnet_test_loader
