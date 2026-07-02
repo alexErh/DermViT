@@ -82,6 +82,25 @@ def get_transforms():
     return train_tf, val_tf
 
 
+def get_timm_transforms():
+    """
+    Transforms for Model C (timm ViT) – 224×224, ImageNet normalization.
+    """
+    timm_train_tf = transforms.Compose([
+        transforms.Resize((config.IMG_SIZE_TIMM, config.IMG_SIZE_TIMM)),
+        RandomAugmentation8(),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+    timm_val_tf = transforms.Compose([
+        transforms.Resize((config.IMG_SIZE_TIMM, config.IMG_SIZE_TIMM)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+    ])
+    return timm_train_tf, timm_val_tf
+
+
 def get_dataloaders(df_train, df_val, df_test):
     """
     Creates DataLoaders for CNN and ViT (Models A & B).
@@ -109,3 +128,31 @@ def get_dataloaders(df_train, df_val, df_test):
     print(f'DataLoaders created  |  Train: {len(train_loader)} batches'
           f'  |  Val: {len(val_loader)} batches')
     return train_loader, val_loader, test_loader
+
+
+def get_timm_dataloaders(df_train, df_val, df_test):
+    """
+    Creates DataLoaders for Model C (timm ViT, 224×224).
+
+    Returns:
+        timm_train_loader, timm_val_loader, timm_test_loader
+    """
+    timm_train_tf, timm_val_tf = get_timm_transforms()
+
+    timm_train_loader = DataLoader(
+        HAM10000Dataset(df_train, timm_train_tf),
+        batch_size=32, shuffle=True,
+        num_workers=0, pin_memory=False
+    )
+    timm_val_loader = DataLoader(
+        HAM10000Dataset(df_val, timm_val_tf),
+        batch_size=32, shuffle=False,
+        num_workers=0, pin_memory=False
+    )
+    timm_test_loader = DataLoader(
+        HAM10000Dataset(df_test, timm_val_tf),
+        batch_size=32, shuffle=False,
+        num_workers=0, pin_memory=False
+    )
+    print(f'timm DataLoaders created  |  Train: {len(timm_train_loader)} batches')
+    return timm_train_loader, timm_val_loader, timm_test_loader
