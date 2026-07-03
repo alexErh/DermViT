@@ -1,8 +1,10 @@
-# DermViT – CNN vs. ViT on HAM10000
+# DermViT – CNN vs. ViT vs. Pretrained ViT vs. Pretrained CNN
 
-Skin lesion classification on the **HAM10000** dataset. The goal is to compare a
-classic CNN against a Vision Transformer, and to study what transfer learning
-contributes to each.
+Skin lesion classification on the **HAM10000** dataset, comparing four models to
+study two questions side by side:
+
+- **Architecture:** classic CNN vs. Vision Transformer (ViT)
+- **Transfer learning:** training from scratch vs. fine-tuning pretrained weights
 
 > **Research question:** Can a Vision Transformer outperform a classic CNN – and
 > what does transfer learning contribute to CNN and ViT respectively?
@@ -14,19 +16,34 @@ Module: **Concepts of Deep Learning**
 
 ---
 
+## The four models
+
+| Model | Architecture | Pretrained | Input |
+|-------|--------------|------------|-------|
+| **A** | CNN (4 conv blocks) | No | 64×64 |
+| **B** | Vision Transformer (from scratch) | No | 64×64 |
+| **C** | ViT-Small (`timm`) | ImageNet-21k | 224×224 |
+| **D** | ResNet50 (`timm`) | ImageNet-1k | 224×224 |
+
+The four models span both comparison axes: A↔B compares architectures trained
+from scratch, C↔D compares architectures with transfer learning, A↔D shows the
+effect of transfer learning for CNNs, and B↔C shows it for ViTs.
+
+---
+
 ## Dataset
 
 [HAM10000](https://www.kaggle.com/datasets/kmader/skin-cancer-mnist-ham10000)
 ("Human Against Machine with 10000 training images") – 10,015 dermatoscopic
-images across 7 lesion classes (heavily imbalanced; `nv` ≈ 67%).
+images across 7 lesion classes. The dataset is **heavily imbalanced** (`nv` ≈
+67%); this is handled with class-weighted cross-entropy and reported via
+**balanced accuracy** in addition to plain accuracy.
 
 ### Setup
 
 1. Create a [Kaggle](https://www.kaggle.com) account and download the dataset.
 2. Place `ham10000.zip` in the project root and run `Unzipper.ipynb`, **or**
    extract it manually into `./data/ham10000/`.
-
-Expected folder structure:
 
 ```
 data/ham10000/
@@ -37,8 +54,36 @@ data/ham10000/
 
 ---
 
-## Configuration
+## Project structure
 
-All paths, hyperparameters and the class mapping live in `config.py`.
-`config.init()` sets the random seed, selects the device (CPU/GPU) and loads the
-metadata CSV into a prepared dataframe.
+| File | Purpose |
+|------|---------|
+| `config.py` | Global configuration: paths, hyperparameters, class mapping. `init()` sets up `DEVICE`, seeds, and loads the dataframe. |
+| `dataset.py` | `HAM10000Dataset`, online 8-variant augmentation, and DataLoaders for each model variant. |
+| `models.py` | All architectures: `CNN`, `ViT` (from scratch), and factory functions for the pretrained `timm` ViT and ResNet50. |
+| `training.py` | Training loops: single-phase for A & B, two-phase (head-only → full fine-tuning) for C & D. |
+| `visualization.py` | Evaluation (`get_predictions`) and interpretability: ViT attention rollout + CNN Grad-CAM. |
+| `Unzipper.ipynb` | Helper to extract the dataset archive. |
+
+---
+
+## Key implementation details
+
+- **Online augmentation** (`RandomAugmentation8`): each image is randomly mapped
+  to one of 8 rotation/flip variants on load — no extra disk usage, all
+  transforms in-memory.
+- **Two-phase fine-tuning** (Models C & D): first train only the classification
+  head (epochs 1–10) with the backbone frozen, then fine-tune all weights with a
+  small learning rate (epochs 11–30, cosine schedule).
+- **Class imbalance** is handled with inverse-frequency class weights in the
+  cross-entropy loss.
+- **Interpretability:** ViT uses *attention rollout* (Abnar & Zuidema, 2020)
+  accumulated across all transformer blocks; the CNN uses *Grad-CAM* on its last
+  convolutional layer.
+
+---
+
+## Reproducibility
+
+A fixed seed (`SEED = 42`) is set for `random`, `numpy`, and `torch` in
+`config.init()`. The train/val/test split is stratified (70/15/15).
