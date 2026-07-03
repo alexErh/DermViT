@@ -18,12 +18,12 @@ Module: **Concepts of Deep Learning**
 
 ## The four models
 
-| Model | Architecture | Pretrained | Input |
-|-------|--------------|------------|-------|
-| **A** | CNN (4 conv blocks) | No | 64×64 |
-| **B** | Vision Transformer (from scratch) | No | 64×64 |
-| **C** | ViT-Small (`timm`) | ImageNet-21k | 224×224 |
-| **D** | ResNet50 (`timm`) | ImageNet-1k | 224×224 |
+| Model | Architecture | Pretrained | Input | Section in notebook |
+|-------|--------------|------------|-------|---------------------|
+| **A** | CNN (4 conv blocks) | No | 64×64 | 3 |
+| **B** | Vision Transformer (from scratch) | No | 64×64 | 4 |
+| **C** | ViT-Small (`timm`) | ImageNet-21k | 224×224 | 5 |
+| **D** | ResNet50 (`timm`) | ImageNet-1k | 224×224 | 6 |
 
 The four models span both comparison axes: A↔B compares architectures trained
 from scratch, C↔D compares architectures with transfer learning, A↔D shows the
@@ -63,7 +63,23 @@ data/ham10000/
 | `models.py` | All architectures: `CNN`, `ViT` (from scratch), and factory functions for the pretrained `timm` ViT and ResNet50. |
 | `training.py` | Training loops: single-phase for A & B, two-phase (head-only → full fine-tuning) for C & D. |
 | `visualization.py` | Evaluation (`get_predictions`) and interpretability: ViT attention rollout + CNN Grad-CAM. |
+| `DermViT_4models.ipynb` | Main notebook – runs the full comparison end to end. |
 | `Unzipper.ipynb` | Helper to extract the dataset archive. |
+
+---
+
+## Usage
+
+Open `DermViT_4models.ipynb` and run the cells top to bottom. The notebook will:
+
+1. Load and analyze the dataset (class distribution, example images).
+2. Build and train all four models.
+3. Evaluate on the test set (accuracy, balanced accuracy, confusion matrices, per-class F1).
+4. Generate interpretability visualizations (attention rollout vs. Grad-CAM).
+5. Produce a final summary comparing all four models.
+
+Trained weights are saved as `best_<name>.pth`, and figures are written as
+`.png` files in the project root.
 
 ---
 
