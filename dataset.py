@@ -2,9 +2,11 @@
 dataset.py
 ──────────
 Dataset class, online augmentation and DataLoaders for HAM10000.
-"""
 
-import random
+The training set is expanded by the geometric augmentation: every df row is
+combined with all 8 variant indices, so a single epoch contains all 8
+geometric variants of every image (8× the original number of samples).
+"""
 
 import torch
 import torchvision.transforms as transforms
@@ -15,10 +17,10 @@ from torch.utils.data import DataLoader, Dataset
 import config
 
 
-class RandomAugmentation8:
+class VariantAugmentation8:
     """
-    Online augmentation with 8 variants.
-    Each call randomly selects one of the 8 variants:
+    Geometric augmentation with 8 variants. No extra memory needed –
+    all transforms are in-memory. The variant is selected by its index:
 
       0 – Original
       1 – rotated 90°
@@ -29,10 +31,12 @@ class RandomAugmentation8:
       6 – horizontally flipped + rotated 90°
       7 – horizontally flipped + rotated 270°
 
-    No extra memory needed – all transforms are in-memory.
+    The variant index comes from the dataset expansion (see HAM10000Dataset),
+    so every image is shown in all 8 variants within a single epoch.
     """
-    def __call__(self, img):
-        variant = random.randint(0, 7)
+    N_VARIANTS = 8
+
+    def __call__(self, img, variant: int):
         if variant == 0: return img
         if variant == 1: return TF.rotate(img, 90)
         if variant == 2: return TF.rotate(img, 180)
@@ -44,18 +48,33 @@ class RandomAugmentation8:
 
 
 class HAM10000Dataset(Dataset):
-    """PyTorch Dataset for the HAM10000 dataset."""
+    """
+    PyTorch Dataset for the HAM10000 dataset.
 
-    def __init__(self, dataframe, transform=None):
-        self.df        = dataframe.reset_index(drop=True)
-        self.transform = transform
+    When `augment` is given, the dataset is expanded by a factor of
+    `augment.N_VARIANTS`: each df row is combined with every variant index,
+    so a single epoch contains all 8 geometric variants of every image.
+    The flat index maps to (row, variant) as:
+        row     = index // n_variants
+        variant = index %  n_variants
+    """
+
+    def __init__(self, dataframe, transform=None, augment=None):
+        self.df         = dataframe.reset_index(drop=True)
+        self.transform  = transform
+        self.augment    = augment
+        self.n_variants = augment.N_VARIANTS if augment is not None else 1
 
     def __len__(self):
-        return len(self.df)
+        return len(self.df) * self.n_variants
 
-    def __getitem__(self, idx):
-        row   = self.df.iloc[idx]
-        image = Image.open(row['path']).convert('RGB')
+    def __getitem__(self, index):
+        row_idx = index // self.n_variants
+        variant = index %  self.n_variants
+        row     = self.df.iloc[row_idx]
+        image   = Image.open(row['path']).convert('RGB')
+        if self.augment:
+            image = self.augment(image, variant)
         if self.transform:
             image = self.transform(image)
         return image, int(row['label'])
@@ -63,14 +82,13 @@ class HAM10000Dataset(Dataset):
 
 def get_transforms():
     """
-    Returns train_tf and val_tf.
-    train_tf: RandomAugmentation8 + ColorJitter + Normalize
-    val_tf:   Resize + Normalize only (no randomness)
+    Returns train_tf and val_tf for CNN and ViT from scratch.
+    Geometric augmentation is handled separately in HAM10000Dataset
+    to make it deterministic across models.
     """
     train_tf = transforms.Compose([
         transforms.Resize((config.IMG_SIZE, config.IMG_SIZE)),
-        RandomAugmentation8(),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
         transforms.ToTensor(),
         transforms.Normalize(config.MEAN, config.STD),
     ])
@@ -85,11 +103,12 @@ def get_transforms():
 def get_timm_transforms():
     """
     Transforms for Model C (timm ViT) – 224×224, ImageNet normalization.
+    Geometric augmentation is handled separately in HAM10000Dataset
+    to make it deterministic across models.
     """
     timm_train_tf = transforms.Compose([
         transforms.Resize((config.IMG_SIZE_TIMM, config.IMG_SIZE_TIMM)),
-        RandomAugmentation8(),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
@@ -111,7 +130,7 @@ def get_dataloaders(df_train, df_val, df_test):
     train_tf, val_tf = get_transforms()
 
     train_loader = DataLoader(
-        HAM10000Dataset(df_train, train_tf),
+        HAM10000Dataset(df_train, train_tf, augment=VariantAugmentation8()),
         batch_size=config.BATCH_SIZE, shuffle=True,
         num_workers=0, pin_memory=False
     )
@@ -140,7 +159,7 @@ def get_timm_dataloaders(df_train, df_val, df_test):
     timm_train_tf, timm_val_tf = get_timm_transforms()
 
     timm_train_loader = DataLoader(
-        HAM10000Dataset(df_train, timm_train_tf),
+        HAM10000Dataset(df_train, timm_train_tf, augment=VariantAugmentation8()),
         batch_size=32, shuffle=True,
         num_workers=0, pin_memory=False
     )
@@ -162,11 +181,12 @@ def get_resnet_transforms():
     """
     Transforms for Model D (ResNet50) – 224×224, ImageNet normalization.
     Identical to timm ViT transforms for a fair comparison.
+    Geometric augmentation is handled separately in HAM10000Dataset
+    to make it deterministic across models.
     """
     resnet_train_tf = transforms.Compose([
         transforms.Resize((config.IMG_SIZE_RESNET, config.IMG_SIZE_RESNET)),
-        RandomAugmentation8(),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
+        # transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
     ])
@@ -188,7 +208,7 @@ def get_resnet_dataloaders(df_train, df_val, df_test):
     resnet_train_tf, resnet_val_tf = get_resnet_transforms()
 
     resnet_train_loader = DataLoader(
-        HAM10000Dataset(df_train, resnet_train_tf),
+        HAM10000Dataset(df_train, resnet_train_tf, augment=VariantAugmentation8()),
         batch_size=32, shuffle=True,
         num_workers=0, pin_memory=False
     )

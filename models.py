@@ -5,7 +5,6 @@ All model architectures for DermViT:
   - CNN          : classic approach (Model A)
   - ViT          : custom implementation following Dosovitskiy et al. (Model B)
   - get_timm_vit : pretrained ViT from timm (Model C)
-  - ResNet50Timm : pretrained ResNet50 from timm (Model D)
 """
 
 import torch
@@ -23,11 +22,15 @@ import config
 class CNN(nn.Module):
     """
     Classic Convolutional Neural Network (Model A).
-    4 conv blocks: Conv → BN → ReLU → MaxPool
-    Filter count doubles per block: 32 → 64 → 128 → 256
+    4 conv blocks: Conv → BN → ReLU → MaxPool, channel count roughly doubles
+    per block.
+
+    The channel widths (52, 104, 208, 418) are sized so the parameter count
+    matches the from-scratch ViT (Model B) for a fair architecture comparison:
+    ≈3.29M parameters (vs. ViT's 3,292,423 – a difference of ~0.01%).
     """
 
-    def __init__(self, num_classes=7, dropout=0.3):
+    def __init__(self, num_classes=7, dropout=0.3, channels=(52, 104, 208, 418)):
         super().__init__()
 
         def conv_block(in_ch, out_ch):
@@ -42,20 +45,21 @@ class CNN(nn.Module):
                 nn.Dropout2d(dropout * 0.5)
             )
 
+        c1, c2, c3, c4 = channels
         self.features = nn.Sequential(
-            conv_block(3,   32),   # 64 → 32
-            conv_block(32,  64),   # 32 → 16
-            conv_block(64,  128),  # 16 → 8
-            conv_block(128, 256),  #  8 → 4
+            conv_block(3,  c1),   # 64 → 32
+            conv_block(c1, c2),   # 32 → 16
+            conv_block(c2, c3),   # 16 → 8
+            conv_block(c3, c4),   #  8 → 4
         )
         self.pool = nn.AdaptiveAvgPool2d(1)
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(256, 256),
+            nn.Linear(c4, c4),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(256, num_classes)
+            nn.Linear(c4, num_classes)
         )
 
         for m in self.modules():
