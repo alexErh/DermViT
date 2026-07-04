@@ -18,12 +18,12 @@ Module: **Concepts of Deep Learning**
 
 ## The four models
 
-| Model | Architecture | Pretrained | Input |
-|-------|--------------|------------|-------|
-| **A** | CNN (4 conv blocks) | No | 64×64 |
-| **B** | Vision Transformer (from scratch) | No | 64×64 |
-| **C** | ViT-Small (`timm`) | ImageNet-21k | 224×224 |
-| **D** | ResNet50 (`timm`) | ImageNet-1k | 224×224 |
+| Model | Architecture | Pretrained | Input | Section in notebook |
+|-------|--------------|------------|-------|---------------------|
+| **A** | CNN (4 conv blocks) | No | 64×64 | 3 |
+| **B** | Vision Transformer (from scratch) | No | 64×64 | 4 |
+| **C** | ViT-Small (`timm`) | ImageNet-21k | 224×224 | 5 |
+| **D** | ResNet50 (`timm`) | ImageNet-1k | 224×224 | 6 |
 
 The four models span both comparison axes: A↔B compares architectures trained
 from scratch, C↔D compares architectures with transfer learning, A↔D shows the
@@ -35,8 +35,20 @@ effect of transfer learning for CNNs, and B↔C shows it for ViTs.
 
 [HAM10000](https://www.kaggle.com/datasets/kmader/skin-cancer-mnist-ham10000)
 ("Human Against Machine with 10000 training images") – 10,015 dermatoscopic
-images across 7 lesion classes. The dataset is **heavily imbalanced** (`nv` ≈
-67%); this is handled with class-weighted cross-entropy and reported via
+images across 7 lesion classes.
+
+| Abbreviation | Name | Type |
+|------|------|------|
+| `mel`   | Melanoma | malignant |
+| `bcc`   | Basal cell carcinoma | malignant |
+| `akiec` | Actinic keratosis | potentially malignant |
+| `bkl`   | Benign keratosis | benign |
+| `nv`    | Melanocytic nevus | benign |
+| `df`    | Dermatofibroma | benign |
+| `vasc`  | Vascular lesion | benign |
+
+The dataset is **heavily imbalanced**: `nv` alone accounts for ~67% of all
+images. This is addressed with class-weighted cross-entropy loss and reported via
 **balanced accuracy** in addition to plain accuracy.
 
 ### Setup
@@ -44,6 +56,8 @@ images across 7 lesion classes. The dataset is **heavily imbalanced** (`nv` ≈
 1. Create a [Kaggle](https://www.kaggle.com) account and download the dataset.
 2. Place `ham10000.zip` in the project root and run `Unzipper.ipynb`, **or**
    extract it manually into `./data/ham10000/`.
+
+Expected folder structure:
 
 ```
 data/ham10000/
@@ -63,15 +77,53 @@ data/ham10000/
 | `models.py` | All architectures: `CNN`, `ViT` (from scratch), and factory functions for the pretrained `timm` ViT and ResNet50. |
 | `training.py` | Training loops: single-phase for A & B, two-phase (head-only → full fine-tuning) for C & D. |
 | `visualization.py` | Evaluation (`get_predictions`) and interpretability: ViT attention rollout + CNN Grad-CAM. |
+| `DermViT_4models.ipynb` | Main notebook – runs the full comparison end to end. |
 | `Unzipper.ipynb` | Helper to extract the dataset archive. |
+
+---
+
+## Usage
+
+### Requirements
+
+The first notebook cell installs everything:
+
+```python
+torch, torchvision, einops, matplotlib, seaborn,
+pandas, scikit-learn, tqdm, Pillow, timm
+```
+
+### Run
+
+Open `DermViT_4models.ipynb` and run the cells top to bottom. The notebook will:
+
+1. Load and analyze the dataset (class distribution, example images).
+2. Build and train all four models.
+3. Evaluate on the test set (accuracy, balanced accuracy, confusion matrices, per-class F1).
+4. Generate interpretability visualizations (attention rollout vs. Grad-CAM).
+5. Produce a final summary comparing all four models.
+
+> **Note on compute:** The default `IMG_SIZE = 64` keeps Models A & B fast on
+> CPU. Models C & D use 224×224 inputs and are considerably heavier — training
+> on CPU takes hours. Use a GPU where possible (set `IMG_SIZE = 224` for the
+> from-scratch models too if you have the budget).
+
+Trained weights are saved as `best_<name>.pth`, and figures are written as
+`.png` files in the project root.
 
 ---
 
 ## Key implementation details
 
-- **Online augmentation** (`RandomAugmentation8`): each image is randomly mapped
-  to one of 8 rotation/flip variants on load — no extra disk usage, all
-  transforms in-memory.
+- **Expanded geometric augmentation** (`VariantAugmentation8`): the training set
+  is expanded 8× — every image is combined with all 8 rotation/flip variant
+  indices, so **a single epoch contains all 8 geometric variants of every
+  image** (no extra disk usage, all transforms in-memory). The dataset's flat
+  index maps to `(row, variant)` via `row = index // 8`, `variant = index % 8`.
+  Because the variants come from the dataset structure (not from chance), all 4
+  models train on the exact same expanded sample set. `ColorJitter` is left
+  commented out. **Note:** each epoch is 8× larger, so training is ~8× slower per
+  epoch — consider lowering `NUM_EPOCHS` accordingly.
 - **Two-phase fine-tuning** (Models C & D): first train only the classification
   head (epochs 1–10) with the backbone frozen, then fine-tune all weights with a
   small learning rate (epochs 11–30, cosine schedule).
