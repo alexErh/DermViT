@@ -144,8 +144,10 @@ def get_dataloaders(df_train, df_val, df_test):
         batch_size=config.BATCH_SIZE, shuffle=False,
         num_workers=0, pin_memory=False
     )
-    print(f'DataLoaders created  |  Train: {len(train_loader)} batches'
-          f'  |  Val: {len(val_loader)} batches')
+    n_train = len(train_loader.dataset)          # expanded: images × variants
+    print(f'DataLoaders created  |  Train: {len(df_train)} images × '
+          f'{n_train // len(df_train)} variants = {n_train} samples '
+          f'({len(train_loader)} batches)  |  Val: {len(val_loader.dataset)} samples')
     return train_loader, val_loader, test_loader
 
 
@@ -173,7 +175,10 @@ def get_timm_dataloaders(df_train, df_val, df_test):
         batch_size=32, shuffle=False,
         num_workers=0, pin_memory=False
     )
-    print(f'timm DataLoaders created  |  Train: {len(timm_train_loader)} batches')
+    n_train = len(timm_train_loader.dataset)     # expanded: images × variants
+    print(f'timm DataLoaders created  |  Train: {len(df_train)} images × '
+          f'{n_train // len(df_train)} variants = {n_train} samples '
+          f'({len(timm_train_loader)} batches)')
     return timm_train_loader, timm_val_loader, timm_test_loader
 
 
@@ -222,5 +227,8 @@ def get_resnet_dataloaders(df_train, df_val, df_test):
         batch_size=32, shuffle=False,
         num_workers=0, pin_memory=False
     )
-    print(f'ResNet50 DataLoaders created  |  Train: {len(resnet_train_loader)} batches')
+    n_train = len(resnet_train_loader.dataset)   # expanded: images × variants
+    print(f'ResNet50 DataLoaders created  |  Train: {len(df_train)} images × '
+          f'{n_train // len(df_train)} variants = {n_train} samples '
+          f'({len(resnet_train_loader)} batches)')
     return resnet_train_loader, resnet_val_loader, resnet_test_loader
