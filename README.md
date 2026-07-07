@@ -23,7 +23,10 @@ Module: **Concepts of Deep Learning**
 | **A** | CNN (4 conv blocks) | No | 64×64 | 3 |
 | **B** | Vision Transformer (from scratch) | No | 64×64 | 4 |
 | **C** | ViT-Small (`timm`) | ImageNet-21k | 224×224 | 5 |
-| **D** | ResNet50 (`timm`) | ImageNet-1k | 224×224 | 6 |
+| **D** | ResNetV2-50x1 / BiT (`timm`) | ImageNet-21k | 224×224 | 6 |
+
+Models C and D are both pretrained on **ImageNet-21k** and use a single linear
+head, so the C↔D comparison isolates the architecture (Transformer vs. CNN).
 
 The four models span both comparison axes: A↔B compares architectures trained
 from scratch, C↔D compares architectures with transfer learning, A↔D shows the
@@ -80,6 +83,9 @@ data/ham10000/
 | `DermViT_4models.ipynb` | Main notebook – runs the full comparison end to end. |
 | `Unzipper.ipynb` | Helper to extract the dataset archive. |
 
+Running the notebook also creates a `histories/` folder with the saved training
+curves (see *Key implementation details*).
+
 ---
 
 ## Usage
@@ -98,7 +104,7 @@ pandas, scikit-learn, tqdm, Pillow, timm
 Open `DermViT_4models.ipynb` and run the cells top to bottom. The notebook will:
 
 1. Load and analyze the dataset (class distribution, example images).
-2. Build and train all four models.
+2. Build and train all four models (saving each training history to `histories/`).
 3. Evaluate on the test set (accuracy, balanced accuracy, confusion matrices, per-class F1).
 4. Generate interpretability visualizations (attention rollout vs. Grad-CAM).
 5. Produce a final summary comparing all four models.
@@ -123,10 +129,17 @@ Trained weights are saved as `best_<name>.pth`, and figures are written as
   Because the variants come from the dataset structure (not from chance), all 4
   models train on the exact same expanded sample set. `ColorJitter` is left
   commented out. **Note:** each epoch is 8× larger, so training is ~8× slower per
-  epoch — consider lowering `NUM_EPOCHS` accordingly.
+  epoch — `NUM_EPOCHS` is set accordingly.
 - **Two-phase fine-tuning** (Models C & D): first train only the classification
-  head (epochs 1–10) with the backbone frozen, then fine-tune all weights with a
-  small learning rate (epochs 11–30, cosine schedule).
+  head with the backbone frozen, then fine-tune all weights with a small learning
+  rate (cosine schedule). The phase lengths are configurable in `config.py` via
+  `PRETRAINED_HEAD_EPOCHS` (default 5) and `PRETRAINED_FINETUNE_EPOCHS`
+  (default 10).
+- **Training-history logging:** after each model is trained, the notebook calls
+  `save_history(...)`, which writes the full training curves to `histories/` as
+  `history_<name>.pkl` (reload with `load_history`), `history_<name>.csv`, and a
+  `history_<name>_metadata.json` (config snapshot, best val-acc/loss, training
+  time). This lets you re-run the analysis/plots later without retraining.
 - **Class imbalance** is handled with inverse-frequency class weights in the
   cross-entropy loss.
 - **Interpretability:** ViT uses *attention rollout* (Abnar & Zuidema, 2020)

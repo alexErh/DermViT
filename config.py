@@ -24,10 +24,14 @@ IMG_DIR_2 = DATA_DIR / 'HAM10000_images_part_2'
 # ── Hyperparameters ───────────────────────────────────────────────────────────
 IMG_SIZE     = 64       # 64×64 px – for CPU; increase to 224 for GPU
 BATCH_SIZE   = 64
-NUM_EPOCHS   = 30
+NUM_EPOCHS   = 15       # for CNN and ViT from scratch (Models A & B)
 LR           = 1e-3
 WEIGHT_DECAY = 1e-4
 SEED         = 42
+
+# ── Two-phase training for pretrained models (Models C & D) ───────────────────
+PRETRAINED_HEAD_EPOCHS     = 5    # phase 1: train classification head only
+PRETRAINED_FINETUNE_EPOCHS = 10   # phase 2: fine-tune all weights
 
 # ── ViT-specific hyperparameters ──────────────────────────────────────────────
 PATCH_SIZE = 8
@@ -84,7 +88,7 @@ def init(csv_path=None):
     # Device
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     if DEVICE.type == 'cpu':
-        torch.set_num_threads(min(16, os.cpu_count()))
+        torch.set_num_threads(min(16, os.cpu_count() or 1))
     print(f'Device: {DEVICE}  |  CPU threads: {torch.get_num_threads()}')
 
     # Load dataset
