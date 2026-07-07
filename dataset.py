@@ -132,17 +132,17 @@ def get_dataloaders(df_train, df_val, df_test):
     train_loader = DataLoader(
         HAM10000Dataset(df_train, train_tf, augment=VariantAugmentation8()),
         batch_size=config.BATCH_SIZE, shuffle=True,
-        num_workers=0, pin_memory=False
+        num_workers=4, pin_memory=False
     )
     val_loader = DataLoader(
         HAM10000Dataset(df_val, val_tf),
         batch_size=config.BATCH_SIZE, shuffle=False,
-        num_workers=0, pin_memory=False
+        num_workers=4, pin_memory=False
     )
     test_loader = DataLoader(
         HAM10000Dataset(df_test, val_tf),
         batch_size=config.BATCH_SIZE, shuffle=False,
-        num_workers=0, pin_memory=False
+        num_workers=4, pin_memory=False
     )
     n_train = len(train_loader.dataset)          # expanded: images × variants
     print(f'DataLoaders created  |  Train: {len(df_train)} images × '

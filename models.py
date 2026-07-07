@@ -293,22 +293,26 @@ def build_timm_vit(device=None):
 
 class ResNet50Timm(nn.Module):
     """
-    Wrapper around timm ResNet50 – ensures .fc (head) is accessible
-    uniformly like model.head in ViT (for two-phase training).
+    Wrapper around a timm ResNet – exposes a uniform .head (like model.head in
+    the ViT) for two-phase training.
+
+    Uses ResNetV2-50x1 (BiT) pretrained on ImageNet-21k, matching Model C's
+    ImageNet-21k pretraining so that the C-vs-D comparison isolates the
+    architecture (Transformer vs. CNN) rather than the pretraining dataset.
+    The head is a single Linear layer, identical in form to the ViT head.
+
+    Note: BiT / ResNetV2 uses GroupNorm + Weight Standardization instead of
+    BatchNorm.
     """
 
     def __init__(self, num_classes=7):
         super().__init__()
         import timm
-        base = timm.create_model('resnet50', pretrained=True, num_classes=0)
+        base = timm.create_model('resnetv2_50x1_bit.goog_in21k_ft_in1k',
+                                 pretrained=True, num_classes=0)
         self.backbone  = base
-        in_features    = base.num_features          # 2048 for ResNet50
-        self.head      = nn.Sequential(
-            nn.Linear(in_features, 512),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(512, num_classes)
-        )
+        in_features    = base.num_features          # 2048 for ResNetV2-50x1
+        self.head      = nn.Linear(in_features, num_classes)
 
     def forward(self, x):
         features = self.backbone(x)   # (B, 2048)
@@ -317,14 +321,14 @@ class ResNet50Timm(nn.Module):
 
 def build_resnet50(device=None):
     """
-    Loads pretrained ResNet50 from timm (Model D).
-    Pretrained on ImageNet-1k.
+    Loads pretrained ResNetV2-50x1 (BiT) from timm (Model D).
+    Pretrained on ImageNet-21k (matches Model C for a fair comparison).
     Same input size as Model C: 224×224 px.
     """
     dev   = device or config.DEVICE
     model = ResNet50Timm(num_classes=config.NUM_CLASSES).to(dev)
     params = sum(p.numel() for p in model.parameters())
     print(f'ResNet50 parameters: {params:,}')
-    print(f'  → Backbone: ResNet50 (ImageNet-1k pretrained)')
-    print(f'  → Head:     Linear(2048→512→{config.NUM_CLASSES})')
+    print(f'  → Backbone: ResNetV2-50x1 (BiT, ImageNet-21k pretrained)')
+    print(f'  → Head:     Linear({model.backbone.num_features}→{config.NUM_CLASSES})')
     return model

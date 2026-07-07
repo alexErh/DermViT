@@ -7,6 +7,9 @@ Training functions for all four models.
   - run_training               : full loop for CNN and ViT scratch (Models A & B)
   - run_training_pretrained_vit: two-phase training for pretrained ViT (Model C)
   - run_training_resnet        : two-phase training for pretrained ResNet50 (Model D)
+
+The two-phase trainings use config.PRETRAINED_HEAD_EPOCHS and
+config.PRETRAINED_FINETUNE_EPOCHS for the phase lengths.
 """
 
 import time
@@ -123,8 +126,8 @@ def run_training_pretrained_vit(model, name, train_loader, val_loader, class_wei
     """
     Two-phase training for pretrained ViT (Model C).
 
-    Phase 1 (epochs 1-10):  Train classification head only
-    Phase 2 (epochs 11-30): Fine-tune all weights with small LR
+    Phase 1 (config.PRETRAINED_HEAD_EPOCHS):     train classification head only
+    Phase 2 (config.PRETRAINED_FINETUNE_EPOCHS): fine-tune all weights with small LR
 
     Args:
         model         : pretrained timm ViT-Small model
@@ -143,6 +146,9 @@ def run_training_pretrained_vit(model, name, train_loader, val_loader, class_wei
     best_path = f'best_{name}.pth'
     t_start   = time.time()
 
+    head_epochs     = config.PRETRAINED_HEAD_EPOCHS
+    finetune_epochs = config.PRETRAINED_FINETUNE_EPOCHS
+
     def _print_header():
         print(f'{"Ep":>4} | {"T-Loss":>8} | {"T-Acc":>7} | '
               f'{"V-Loss":>8} | {"V-Acc":>7} | Time')
@@ -172,7 +178,7 @@ def run_training_pretrained_vit(model, name, train_loader, val_loader, class_wei
                   f'{time.time()-t0:.0f}s{marker}')
 
     # ── Phase 1: Train head only ──────────────────────────────────────────────
-    print('\n── Phase 1: Train head only (epochs 1-10) ──')
+    print(f'\n── Phase 1: Train head only (epochs 1-{head_epochs}) ──')
     for param in model.parameters():
         param.requires_grad = False
     for param in model.head.parameters():
@@ -181,10 +187,11 @@ def run_training_pretrained_vit(model, name, train_loader, val_loader, class_wei
     opt1 = optim.AdamW(model.head.parameters(),
                        lr=1e-3, weight_decay=config.WEIGHT_DECAY)
     _print_header()
-    _run_epochs(range(1, 11), opt1)
+    _run_epochs(range(1, head_epochs + 1), opt1)
 
     # ── Phase 2: Fine-tune all weights ───────────────────────────────────────
-    print('\n── Phase 2: Fine-tune all weights (epochs 11-30) ──')
+    print(f'\n── Phase 2: Fine-tune all weights '
+          f'(epochs {head_epochs + 1}-{head_epochs + finetune_epochs}) ──')
     for param in model.parameters():
         param.requires_grad = True
 
@@ -193,10 +200,10 @@ def run_training_pretrained_vit(model, name, train_loader, val_loader, class_wei
         {'params': [p for n, p in model.named_parameters()
                     if 'head' not in n],                                   'lr': 1e-5},
     ], weight_decay=config.WEIGHT_DECAY)
-    sched2 = optim.lr_scheduler.CosineAnnealingLR(opt2, T_max=20)
+    sched2 = optim.lr_scheduler.CosineAnnealingLR(opt2, T_max=finetune_epochs)
 
     _print_header()
-    _run_epochs(range(11, 31), opt2, sched2)
+    _run_epochs(range(head_epochs + 1, head_epochs + finetune_epochs + 1), opt2, sched2)
 
     total_time = time.time() - t_start
     print(f'\nBest val-acc: {best_acc:.2%}  |  '
@@ -209,8 +216,8 @@ def run_training_resnet(model, name, train_loader, val_loader, class_weights):
     """
     Two-phase training for pretrained ResNet50 (Model D).
 
-    Phase 1 (epochs 1-10):  Train classification head only
-    Phase 2 (epochs 11-30): Fine-tune all weights with small LR
+    Phase 1 (config.PRETRAINED_HEAD_EPOCHS):     train classification head only
+    Phase 2 (config.PRETRAINED_FINETUNE_EPOCHS): fine-tune all weights with small LR
 
     Args:
         model         : pretrained ResNet50Timm model
@@ -229,6 +236,9 @@ def run_training_resnet(model, name, train_loader, val_loader, class_weights):
     best_path = f'best_{name}.pth'
     t_start   = time.time()
 
+    head_epochs     = config.PRETRAINED_HEAD_EPOCHS
+    finetune_epochs = config.PRETRAINED_FINETUNE_EPOCHS
+
     def _print_header():
         print(f'{"Ep":>4} | {"T-Loss":>8} | {"T-Acc":>7} | '
               f'{"V-Loss":>8} | {"V-Acc":>7} | Time')
@@ -255,7 +265,7 @@ def run_training_resnet(model, name, train_loader, val_loader, class_weights):
                   f'{time.time()-t0:.0f}s{marker}')
 
     # ── Phase 1: Train head only ──────────────────────────────────────────────
-    print('\n── Phase 1: Train head only (epochs 1-10) ──')
+    print(f'\n── Phase 1: Train head only (epochs 1-{head_epochs}) ──')
     for param in model.parameters():
         param.requires_grad = False
     for param in model.head.parameters():
@@ -263,10 +273,11 @@ def run_training_resnet(model, name, train_loader, val_loader, class_weights):
     opt1 = optim.AdamW(model.head.parameters(),
                        lr=1e-3, weight_decay=config.WEIGHT_DECAY)
     _print_header()
-    _run_epochs(range(1, 11), opt1)
+    _run_epochs(range(1, head_epochs + 1), opt1)
 
     # ── Phase 2: Fine-tune all weights ───────────────────────────────────────
-    print('\n── Phase 2: Fine-tune all weights (epochs 11-30) ──')
+    print(f'\n── Phase 2: Fine-tune all weights '
+          f'(epochs {head_epochs + 1}-{head_epochs + finetune_epochs}) ──')
     for param in model.parameters():
         param.requires_grad = True
     opt2 = optim.AdamW([
@@ -274,9 +285,9 @@ def run_training_resnet(model, name, train_loader, val_loader, class_weights):
         {'params': [p for n, p in model.named_parameters()
                     if 'head' not in n],                                    'lr': 1e-5},
     ], weight_decay=config.WEIGHT_DECAY)
-    sched2 = optim.lr_scheduler.CosineAnnealingLR(opt2, T_max=20)
+    sched2 = optim.lr_scheduler.CosineAnnealingLR(opt2, T_max=finetune_epochs)
     _print_header()
-    _run_epochs(range(11, 31), opt2, sched2)
+    _run_epochs(range(head_epochs + 1, head_epochs + finetune_epochs + 1), opt2, sched2)
 
     total_time = time.time() - t_start
     print(f'\nBest val-acc: {best_acc:.2%}  |  '
