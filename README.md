@@ -83,8 +83,28 @@ data/ham10000/
 | `DermViT_4models.ipynb` | Main notebook – runs the full comparison end to end. |
 | `Unzipper.ipynb` | Helper to extract the dataset archive. |
 
-Running the notebook also creates a `histories/` folder with the saved training
-curves (see *Key implementation details*).
+## Output folder
+
+All artifacts the notebook produces are written into a single output folder named
+after the epoch count, `config.OUTPUT_DIR = Path(f'{NUM_EPOCHS}_epochs')` (e.g.
+`30_epochs/`). Inside it, the notebook creates a `histories/` subfolder
+(`HISTORY_DIR = config.OUTPUT_DIR / 'histories'`) for the saved training curves
+(see *Key implementation details*). So for the default `NUM_EPOCHS = 30` you get:
+
+```
+30_epochs/
+├── 01_datenuebersicht.png
+├── 02_beispielbilder.png
+├── 03_training_vergleich.png
+├── 04_confusion_matrices_30E.png
+├── 05_f1_vergleich.png
+├── 06_interp_<class>.png
+├── 07_zusammenfassung.png
+└── histories/
+    ├── history_<name>.pkl
+    ├── history_<name>.csv
+    └── history_<name>_metadata.json
+```
 
 ---
 
@@ -104,7 +124,7 @@ pandas, scikit-learn, tqdm, Pillow, timm
 Open `DermViT_4models.ipynb` and run the cells top to bottom. The notebook will:
 
 1. Load and analyze the dataset (class distribution, example images).
-2. Build and train all four models (saving each training history to `histories/`).
+2. Build and train all four models (saving each training history to `<NUM_EPOCHS>_epochs/histories/`).
 3. Evaluate on the test set (accuracy, balanced accuracy, confusion matrices, per-class F1).
 4. Generate interpretability visualizations (attention rollout vs. Grad-CAM).
 5. Produce a final summary comparing all four models.
@@ -114,8 +134,8 @@ Open `DermViT_4models.ipynb` and run the cells top to bottom. The notebook will:
 > on CPU takes hours. Use a GPU where possible (set `IMG_SIZE = 224` for the
 > from-scratch models too if you have the budget).
 
-Trained weights are saved as `best_<name>.pth`, and figures are written as
-`.png` files in the project root.
+Trained weights are saved as `best_<name>.pth`, and all figures are written as
+`.png` files into the `<NUM_EPOCHS>_epochs/` output folder (e.g. `30_epochs/`).
 
 ---
 
@@ -136,10 +156,11 @@ Trained weights are saved as `best_<name>.pth`, and figures are written as
   `PRETRAINED_HEAD_EPOCHS` (default 5) and `PRETRAINED_FINETUNE_EPOCHS`
   (default 10).
 - **Training-history logging:** after each model is trained, the notebook calls
-  `save_history(...)`, which writes the full training curves to `histories/` as
-  `history_<name>.pkl` (reload with `load_history`), `history_<name>.csv`, and a
-  `history_<name>_metadata.json` (config snapshot, best val-acc/loss, training
-  time). This lets you re-run the analysis/plots later without retraining.
+  `save_history(...)`, which writes the full training curves to
+  `<NUM_EPOCHS>_epochs/histories/` as `history_<name>.pkl` (reload with
+  `load_history`), `history_<name>.csv`, and a `history_<name>_metadata.json`
+  (config snapshot, best val-acc/loss, training time). This lets you re-run the
+  analysis/plots later without retraining.
 - **Class imbalance** is handled with inverse-frequency class weights in the
   cross-entropy loss.
 - **Interpretability:** ViT uses *attention rollout* (Abnar & Zuidema, 2020)
