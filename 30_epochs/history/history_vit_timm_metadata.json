@@ -1,0 +1,22 @@
+{
+  "name": "vit_timm",
+  "saved_at": "2026-07-06T19:03:45",
+  "total_time_seconds": 240894.398989439,
+  "num_epochs_recorded": 30,
+  "best_val_acc": 0.8908122503328895,
+  "best_val_loss": 0.882319324700715,
+  "config": {
+    "NUM_EPOCHS": 30,
+    "PRETRAINED_HEAD_EPOCHS": 10,
+    "PRETRAINED_FINETUNE_EPOCHS": 20,
+    "BATCH_SIZE": 64,
+    "IMG_SIZE": 64,
+    "IMG_SIZE_TIMM": 224,
+    "IMG_SIZE_RESNET": 224,
+    "LR": 0.001,
+    "WEIGHT_DECAY": 0.0001,
+    "SEED": 42
+  },
+  "model": "ViT timm pretrained",
+  "checkpoint": "best_vit_timm.pth"
+}

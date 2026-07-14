@@ -1,0 +1,22 @@
+{
+  "name": "cnn",
+  "saved_at": "2026-07-03T09:55:43",
+  "total_time_seconds": 68100.72034692764,
+  "num_epochs_recorded": 30,
+  "best_val_acc": 0.7137150466045273,
+  "best_val_loss": 0.8688034340640042,
+  "config": {
+    "NUM_EPOCHS": 30,
+    "PRETRAINED_HEAD_EPOCHS": 10,
+    "PRETRAINED_FINETUNE_EPOCHS": 20,
+    "BATCH_SIZE": 64,
+    "IMG_SIZE": 64,
+    "IMG_SIZE_TIMM": 224,
+    "IMG_SIZE_RESNET": 224,
+    "LR": 0.001,
+    "WEIGHT_DECAY": 0.0001,
+    "SEED": 42
+  },
+  "model": "CNN scratch",
+  "checkpoint": "best_cnn.pth"
+}

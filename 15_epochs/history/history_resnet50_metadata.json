@@ -1,0 +1,22 @@
+{
+  "name": "resnet50",
+  "saved_at": "2026-07-06T18:16:12",
+  "total_time_seconds": 131817.01680612564,
+  "num_epochs_recorded": 15,
+  "best_val_acc": 0.8848202396804261,
+  "best_val_loss": 1.1987016000716728,
+  "config": {
+    "NUM_EPOCHS": 15,
+    "PRETRAINED_HEAD_EPOCHS": 5,
+    "PRETRAINED_FINETUNE_EPOCHS": 10,
+    "BATCH_SIZE": 64,
+    "IMG_SIZE": 64,
+    "IMG_SIZE_TIMM": 224,
+    "IMG_SIZE_RESNET": 224,
+    "LR": 0.001,
+    "WEIGHT_DECAY": 0.0001,
+    "SEED": 42
+  },
+  "model": "ResNet50 timm pretrained",
+  "checkpoint": "best_resnet50.pth"
+}

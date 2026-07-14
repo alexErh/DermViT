@@ -29,6 +29,9 @@ LR           = 1e-3
 WEIGHT_DECAY = 1e-4
 SEED         = 42
 
+# ── Output directory (named by epoch count) ──────────────────────
+OUTPUT_DIR = Path(f'{NUM_EPOCHS}_epochs')
+
 # ── Two-phase training for pretrained models (Models C & D) ───────────────────
 PRETRAINED_HEAD_EPOCHS     = 5    # phase 1: train classification head only
 PRETRAINED_FINETUNE_EPOCHS = 10   # phase 2: fine-tune all weights

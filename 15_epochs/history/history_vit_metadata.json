@@ -1,0 +1,22 @@
+{
+  "name": "vit",
+  "saved_at": "2026-07-03T08:44:51",
+  "total_time_seconds": 21605.821614980698,
+  "num_epochs_recorded": 15,
+  "best_val_acc": 0.5466045272969374,
+  "best_val_loss": 1.3796784442845738,
+  "config": {
+    "NUM_EPOCHS": 15,
+    "PRETRAINED_HEAD_EPOCHS": 5,
+    "PRETRAINED_FINETUNE_EPOCHS": 10,
+    "BATCH_SIZE": 64,
+    "IMG_SIZE": 64,
+    "IMG_SIZE_TIMM": 224,
+    "IMG_SIZE_RESNET": 224,
+    "LR": 0.001,
+    "WEIGHT_DECAY": 0.0001,
+    "SEED": 42
+  },
+  "model": "ViT scratch",
+  "checkpoint": "best_vit.pth"
+}
