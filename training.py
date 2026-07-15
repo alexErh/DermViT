@@ -88,7 +88,8 @@ def run_training(model, name, train_loader, val_loader, class_weights):
     history   = {'train_loss': [], 'val_loss': [],
                  'train_acc':  [], 'val_acc':  []}
     best_acc  = 0.0
-    best_path = f'best_{name}.pth'
+    config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    best_path = config.OUTPUT_DIR / f'best_{name}.pth'
 
     print(f'\n── Training: {name} ──────────────────────────────────────────')
     print(f'{"Ep":>4} | {"T-Loss":>8} | {"T-Acc":>7} | '
@@ -143,7 +144,8 @@ def run_training_pretrained_vit(model, name, train_loader, val_loader, class_wei
     history   = {'train_loss': [], 'val_loss': [],
                  'train_acc':  [], 'val_acc':  []}
     best_acc  = 0.0
-    best_path = f'best_{name}.pth'
+    config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    best_path = config.OUTPUT_DIR / f'best_{name}.pth'
     t_start   = time.time()
 
     head_epochs     = config.PRETRAINED_HEAD_EPOCHS
@@ -233,7 +235,8 @@ def run_training_resnet(model, name, train_loader, val_loader, class_weights):
     history   = {'train_loss': [], 'val_loss': [],
                  'train_acc':  [], 'val_acc':  []}
     best_acc  = 0.0
-    best_path = f'best_{name}.pth'
+    config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    best_path = config.OUTPUT_DIR / f'best_{name}.pth'
     t_start   = time.time()
 
     head_epochs     = config.PRETRAINED_HEAD_EPOCHS

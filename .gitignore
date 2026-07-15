@@ -2,7 +2,6 @@
 data/
 
 # Trained models - also large
-*.pth
 *.pt
 *.h5
 
@@ -18,9 +17,6 @@ __pycache__/
 
 # ZIP files
 *.zip
-
-# Histories folder
-histories/
 
 # Other
 .DS_Store
