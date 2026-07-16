@@ -137,10 +137,14 @@ def visualize_comparison(vit_model, cnn_model, gradcam,
     # CNN Grad-CAM
     mask_cnn = gradcam(img_t.clone())
 
-    # Predictions
+    # Predictions + confidence (softmax probability of the predicted class)
     with torch.no_grad():
-        vit_pred = vit_model(img_t).argmax(1).item()
-        cnn_pred = cnn_model(img_t).argmax(1).item()
+        vit_prob = torch.softmax(vit_model(img_t), dim=1)
+        cnn_prob = torch.softmax(cnn_model(img_t), dim=1)
+    vit_pred = vit_prob.argmax(1).item()
+    cnn_pred = cnn_prob.argmax(1).item()
+    vit_conf = vit_prob[0, vit_pred].item()
+    cnn_conf = cnn_prob[0, cnn_pred].item()
 
     img_np = np.array(image_pil.resize((img_size, img_size))) / 255.0
 
@@ -163,10 +167,13 @@ def visualize_comparison(vit_model, cnn_model, gradcam,
         f'CNN Grad-CAM {check}\n{class_names[idx2class[cnn_pred]]}',
         fontsize=9)
 
-    axes[3].bar(['ViT', 'CNN'], [mask_vit.max(), mask_cnn.max()],
-                color=['#534AB7', '#D85A30'])
-    axes[3].set_title('Max. Activation', fontsize=9)
+    bars = axes[3].bar(['ViT', 'CNN'], [vit_conf, cnn_conf],
+                       color=['#534AB7', '#D85A30'])
+    axes[3].set_title('Prediction Confidence', fontsize=9)
     axes[3].set_ylim(0, 1)
+    for b in bars:
+        axes[3].text(b.get_x() + b.get_width() / 2, b.get_height() + 0.02,
+                     f'{b.get_height():.0%}', ha='center', fontsize=8)
 
     for ax in axes[:3]:
         ax.axis('off')
